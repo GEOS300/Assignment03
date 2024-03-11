@@ -1,0 +1,286 @@
+---
+title: "Assignment 3"
+subtitle: "GEOS 300, 2024"
+  
+---
+
+
+
+[Python and R code templates be found here](https://github.com/GEOS300/Assignment03) to help get you started.
+
+
+## Instructions
+
+It is strongly recommended that you complete the assignment in Python or R, although you can complete it in excel/numbers if necessary.  They will download the data for you and get you started with a few blocks of code to make plots and tables.  If you are electing to complete the lab in excel, you can find all the relevant data files here [here](https://github.com/GEOS300/AssignmentData/).  **Note** these data are in .csv format.  If you plan to work in excel, you should save a copy of the data in a suitable excel format (e.g., .xlsx) before making any charts or doing any calculations.
+
+Please upload your answers including all calculations, discussions, tables, and graphs in a single document (PDF or HTML file). Note that you can download your .ipynb file under 'File $\gg$ Download as $\gg$ HTLM or PDF via Latex' and submit this as your report. Label the report document with your name and your student number. Upload your answers to Canvas. **Do not attach a spreadsheet.**
+
+**Make Sure** your student number is include on each plot you produce, and that each plot is using the correct units.
+
+In this exercise you will use a 30-min data-set measured above an extensively flat cotton field near [Kettleman City, CA, US](http://www.eol.ucar.edu/rtf/projects/ebex2000/). The actual day / time is selected based on your student number, the timestamp you are responsible for can be found in (@tbl-dates). You will be provided with two tables: 
+
+**Table1**: lists horizontal wind speeds $\overline{u}$ measured with cup-anemometers installed at six heights on a profile tower averaged over 30 minutes. Air temperature and pressure are also provided in the table header.
+
+**Table2**: contains longitudinal wind $u$, lateral wind $v$ and vertical wind $w$ measured every second over the same 30 minutes by a fast-response anemometer located at 6.4 m height.
+
+* For all questions assume neutral conditions, $z_d=0$, and $P_a$ = 100 kPa.
+
+
+Last digit of student number | date (YYYmmddHHMM)
+-----------------------------|-----
+0 | 200008021530
+1 | 200008031000
+2 | 200008031030
+3 | 200008031200
+4 | 200008041030
+5 | 200008041100
+6 | 200008041130
+7 | 200008041530
+8 | 200008101230
+9 | 200008101530
+
+
+: The Timestamp you are responsible for analyzing in YYYY (Year) mm (month) dd (day) HH (hour) MM (minute) format.  The filename for your date will follow this format: YYYYmmddHHMM.txt.  e.g., wind202402141330.txt and turbulence202402141330.txt would be the files for February 14th, 2023 13:30.  If you are completing the assignment using Python or R, just edit the filename timestamp in the corresponding template. If you are completing the assignment by hand or in excel, you can find the data files [here](https://github.com/GEOS300/AssignmentData/tree/main/WesthamIslandSoilData). {#tbl-dates}
+
+
+
+
+```{r}
+# Enter your information below
+Student.Name = 'June Skeeter'
+Student.Number = 123456789
+sprintf('GEOS 300 Assignment Submission for %s: %s',Student.Name,Student.Number)
+```
+
+
+
+
+```{r}
+library("ggplot2")
+library("reshape2")
+library("latex2exp")
+library("patchwork")
+library("tidyr")
+library("knitr")
+library("plyr")
+library("lubridate")
+library("zoo")
+library("readr")
+```
+
+
+
+```{r}
+# Import the data from github & parse the timestamp for each record
+## **NOTE**  Make sure to edit the timestamp variable so it corresponds to the timestamp you were assigned.
+data_url='https://raw.githubusercontent.com/GEOS300/AssignmentData/main/KettlemanCityCottonField/'
+TimeStamp = '200008191630'
+
+# Format the links to Table 1 (mean wind speed) and Table 2 (high frequency wind data)
+Table_1_url = sprintf('%swind%s.txt',data_url,TimeStamp)
+Table_2_url =  sprintf('%sturbulence%s.txt',data_url,TimeStamp)
+
+# Both tables have 7 rows of metadata at the top.  We'll parse and print those before reading the rest of the data
+header_rows = 7
+
+
+print('Table 1 Metadata:')
+Table_1_header_info = read_fwf(Table_1_url,fwf_widths(c(100)), show_col_types = FALSE)
+print(Table_1_header_info[1:header_rows-1,])
+
+Table_1 <- read.csv(file = Table_1_url,skip=header_rows)
+
+print('Table 1 Data:')
+head(Table_1)
+
+print('Table 2 Metadata:')
+Table_2_header_info = read_fwf(Table_2_url,fwf_widths(c(100)), show_col_types = FALSE)
+print(Table_2_header_info[1:header_rows-1,])
+
+Table_2 <- read.csv(file = Table_2_url,skip=header_rows)
+
+# Parse the timestamp info then drop the old column
+Table_2$TIMESTAMP <- as.POSIXct(Table_2$YYYY.MM.DD.HH.MM.SS,format = "%Y-%m-%d %H:%M:%S")
+Table_2=Table_2[,!(names(Table_2) %in% c('YYYY.MM.DD.HH.MM.SS'))]
+
+print('Table 2 Data:')
+head(Table_2)
+```
+
+
+
+## Question 1
+
+Estimate $z_0$ from the measured values vertical wind profile provided.  Indicate your estimate of $z_0$ in m and produce a log wind profile plot.  You can either use a spreadsheet/software or by hand using [semi-logarithmic graph paper](https://www.eeweb.com/wp-content/uploads/semi-log-graph-paper.pdf). **Note**: If you solve this question using a semi-logarithmic paper, use a ruler and your graphical judgement (subjective) to create the best fit through the points.
+
+
+
+```{r}
+# Hint 1 >>
+# This function can be used to calculate the "natural logarithm" (ln):
+# log()
+
+# Hint 2 >>
+# The "lm" function can be used to estimate the slope (m) and intercept (b) of a line (Y=mX+b), 
+# with the following syntax:
+# fit=lm(Y~X)
+# b=fit$coefficients[1]
+# m=fit$coefficients[2]
+
+# Hint 3 >>
+# The following set of commands can add a new first row a table 
+# 1) Crate a new table with one row (without data values)
+# If you know the values you want to add, just replace np.nan with the value
+#new_first_row = data.frame(Height..m. = NaN, Wind.Speed..m.s. = NaN)
+# 2) Concatenate the new row to the top of the original table then reset the index
+# Wind_Profile = rbind(new_first_row,Table_1)
+```
+
+
+
+## Question 2
+
+Based on the slope of the curve in Question 1, calculate the friction velocity $u_{\ast}$.
+
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+##  Question 3
+
+Estimate the surface shear stress $\tau_0$ from the result in Question 2 and with help of Appendix A3 (p. 392 ff.) in T. R. Oke, 'Boundary Layer Climates available on Canvas.
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 4
+
+Estimate the eddy diffusivities for momentum $K_M$ using the wind gradients $\Delta \overline{u}$ in Table 1 between (a) $z=0.95$ and $1.55$ m, (b) $z=1.55$ and $2.35$ m, (c) $z=2.35$ and $3.72$ m, (d) $z=3.72$ and $6.15$ m, and (e) $z=6.15$ and $9.05$ m. How does $K_M$ change with height? Explain why.
+
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 5
+
+From the values in Table 1, calculate the aerodynamic resistance of the momentum flux $r_{a_M}$ for the layer from the surface to 9.05 m. 
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 6
+
+From the turbulence data provided in Table 2, calculate $\overline{u}$, $\overline{v}$, and $\overline{w}$.  How does the magnitude of $\overline{u}$ compare to $\overline{v}$, and $\overline{w}$?
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 7
+
+From the data in Table 2 calculate $\overline{u^{\prime 2}}$, $\overline{v^{\prime 2}}$, and $\overline{w^{\prime 2}}$. Name those parameters.
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 8
+
+From the data in Table 2 calculate the turbulence intensities $I_u$, $I_v$, and $I_w$.
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 9
+
+From the data in Table 2 calculate the mean turbulent kinetic energy per unit mass $\overline{e}$. What is the ratio of $\overline{e}$ to the mean kinetic energy per unit mass?
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+
+## Question 10
+
+Which of the three wind components, $u$, $v$ or $w$, contains most turbulent kinetic energy per unit mass. Speculate about the shape of the eddies.
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 11
+
+From the data in Table 2 calculate (a) $\overline{u^{\prime}v^{\prime}}$ and (b) $\overline{u^{\prime}w^{\prime}}$
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 12
+
+Calculate $r_{uv}$ and $r_{uw}$. Discuss your results.
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 13
+
+Plot a scatter graph of $u^{\prime}$ ($x$-axis) vs. $w^{\prime}$ ($y$-axis). Comment your graph and discuss if it looks like you expected.
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
+## Question 14
+
+Using your result in question 11 (b), calculate the friction velocity $u_{\ast}$ based on the high-frequency data and compare it to your answer in question 2.
+
+
+
+```{r}
+# Insert your code or text answer here.  If writing a text answer in .ipynb, change the cell type to Markdown.  If writing a text answer in .Rmd, just delete the tick marks surrounding the block
+```
+
+
